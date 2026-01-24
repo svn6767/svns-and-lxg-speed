@@ -1,0 +1,184 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+-- =========================
+-- WHITELIST (USERID BASED)
+-- =========================
+local WHITELIST = {
+	[8101297073] = true,
+}
+
+if not WHITELIST[player.UserId] then
+	player:Kick("You are not whitelisted to use this script.")
+	return
+end
+-- =========================
+
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local root = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+end)
+
+local TARGET_SPEED = 36.5
+local TOOL_NAME = "Giant Potion"
+local enabled = false
+
+local function activateGiantPotion()
+	if not character then return end
+
+	local tool = player.Backpack:FindFirstChild(TOOL_NAME) or character:FindFirstChild(TOOL_NAME)
+
+	if not tool then
+		for _, item in ipairs(player.Backpack:GetChildren()) do
+			if item:IsA("Tool") and (item.Name:lower():find("giant") or item.Name:lower():find("potion")) then
+				tool = item
+				break
+			end
+		end
+	end
+
+	if tool and tool:IsA("Tool") then
+		pcall(function()
+			humanoid:EquipTool(tool)
+		end)
+		pcall(function()
+			tool:Activate()
+		end)
+	end
+end
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "svn and lxg potion speed"
+gui.ResetOnSpawn = false
+gui.Parent = player.PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 110)
+frame.Position = UDim2.new(0.5, -130, 0.8, 0)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local border = Instance.new("UIStroke")
+border.Color = Color3.fromRGB(220, 50, 50)
+border.Thickness = 2
+border.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -24, 0, 30)
+title.Position = UDim2.new(0, 12, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "svn and lxg's Speed"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextColor3 = Color3.fromRGB(255, 80, 80)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -24, 0, 20)
+statusLabel.Position = UDim2.new(0, 12, 0, 42)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Press F to activate..."
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 12
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = frame
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1, -24, 0, 36)
+button.Position = UDim2.new(0, 12, 1, -46)
+button.Text = "Speed: OFF"
+button.Font = Enum.Font.GothamBold
+button.TextSize = 14
+button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+button.TextColor3 = Color3.fromRGB(220, 50, 50)
+button.BorderSizePixel = 0
+button.AutoButtonColor = false
+button.Parent = frame
+
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+local buttonStroke = Instance.new("UIStroke")
+buttonStroke.Color = Color3.fromRGB(220, 50, 50)
+buttonStroke.Thickness = 2
+buttonStroke.Parent = button
+
+local function toggleScript()
+	enabled = not enabled
+	if enabled then
+		button.Text = "Speed: ON"
+		statusLabel.Text = "Speed activated!"
+		button.TextColor3 = Color3.fromRGB(80, 220, 80)
+		activateGiantPotion()
+	else
+		button.Text = "Speed: OFF"
+		statusLabel.Text = "Press F to activate..."
+		button.TextColor3 = Color3.fromRGB(220, 50, 50)
+	end
+end
+
+button.MouseButton1Click:Connect(toggleScript)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	if input.KeyCode == Enum.KeyCode.F then
+		toggleScript()
+	end
+end)
+
+-- Dragging
+local dragging = false
+local dragStart
+local startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+-- Speed force
+RunService.RenderStepped:Connect(function()
+	if not enabled or not root or not humanoid then return end
+	local dir = humanoid.MoveDirection
+	if dir.Magnitude > 0 then
+		local vel = dir.Unit * TARGET_SPEED
+		root.Velocity = Vector3.new(vel.X, root.Velocity.Y, vel.Z)
+	end
+end)
